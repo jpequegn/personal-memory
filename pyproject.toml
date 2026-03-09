@@ -1,0 +1,13 @@
+[project]
+name = "personal-memory"
+version = "0.1.0"
+description = "Personal semantic memory backed by sqlite-vec."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.84.0",
+    "sqlite-vec>=0.1.6",
+]
+
+[project.scripts]
+mem = "mem.cli:main"

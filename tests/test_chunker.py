@@ -1,7 +1,7 @@
 """Unit tests for the text chunker."""
 
 import pytest
-from chunker import chunk, _count_tokens
+from mem.chunker import chunk, _count_tokens
 
 
 # ---------------------------------------------------------------------------
