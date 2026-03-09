@@ -11,3 +11,8 @@ dependencies = [
 
 [project.scripts]
 mem = "mem.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

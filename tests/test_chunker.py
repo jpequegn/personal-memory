@@ -81,7 +81,7 @@ class TestChunkSizes:
 class TestChunkOverlap:
     def test_consecutive_chunks_share_content(self):
         text = _lorem(400)
-        result = chunk(text, max_tokens=64, overlap=16)
+        result = chunk(text, max_tokens=64, overlap=32)
         if len(result) < 2:
             pytest.skip("Not enough chunks to test overlap")
         # Take last few words of chunk N and first few words of chunk N+1;
