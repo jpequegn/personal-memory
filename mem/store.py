@@ -85,6 +85,13 @@ class MemoryStore:
     # Write
     # ------------------------------------------------------------------
 
+    def fingerprint_exists(self, fingerprint: str) -> bool:
+        """Return True if a chunk with this sha256 fingerprint is already stored."""
+        row = self._con.execute(
+            "SELECT 1 FROM memories WHERE fingerprint = ? LIMIT 1", (fingerprint,)
+        ).fetchone()
+        return row is not None
+
     def insert(
         self,
         chunk_text: str,
@@ -93,8 +100,16 @@ class MemoryStore:
         source: str | None = None,
         tags: list[str] | None = None,
         fingerprint: str | None = None,
-    ) -> int:
-        """Insert a chunk and its embedding.  Returns the new row id."""
+        skip_duplicates: bool = False,
+    ) -> int | None:
+        """Insert a chunk and its embedding.
+
+        Returns the new row id, or None if skip_duplicates=True and the
+        fingerprint already exists in the DB.
+        """
+        if skip_duplicates and fingerprint and self.fingerprint_exists(fingerprint):
+            return None
+
         tags_json = json.dumps(tags or [])
         cur = self._con.execute(
             """
@@ -110,6 +125,25 @@ class MemoryStore:
         )
         self._con.commit()
         return row_id
+
+    def find_duplicates(self) -> dict[str, list[int]]:
+        """Return fingerprints that appear more than once, mapped to their row ids.
+
+        Used by `mem dedup --dry-run`.
+        """
+        rows = self._con.execute(
+            """
+            SELECT fingerprint, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
+            FROM memories
+            WHERE fingerprint IS NOT NULL
+            GROUP BY fingerprint
+            HAVING cnt > 1
+            """
+        ).fetchall()
+        return {
+            r["fingerprint"]: [int(i) for i in r["ids"].split(",")]
+            for r in rows
+        }
 
     # ------------------------------------------------------------------
     # Read
@@ -175,25 +209,35 @@ class MemoryStore:
         tags: list[str] | None = None,
         max_tokens: int = 256,
         overlap: int = 32,
-    ) -> int:
-        """Chunk text, embed each chunk, and store everything.
+    ) -> tuple[int, int]:
+        """Chunk text, embed non-duplicate chunks, and store them.
 
-        Returns the number of chunks stored.
+        Returns (stored, skipped) where skipped counts duplicate chunks
+        whose fingerprint was already in the DB.
         """
         from mem.chunker import chunk
         from mem.embedder import embed_batch
 
         chunks = chunk(text, max_tokens=max_tokens, overlap=overlap)
         if not chunks:
-            return 0
+            return 0, 0
 
-        embeddings = embed_batch(chunks)
+        # Compute fingerprints up-front so we can skip duplicates before
+        # paying for embedding API calls.
+        fingerprints = [hashlib.sha256(c.encode()).hexdigest() for c in chunks]
+        new_chunks = [(c, fp) for c, fp in zip(chunks, fingerprints)
+                      if not self.fingerprint_exists(fp)]
+        skipped = len(chunks) - len(new_chunks)
 
-        for chunk_text, embedding in zip(chunks, embeddings):
-            fp = hashlib.sha256(chunk_text.encode()).hexdigest()
+        if not new_chunks:
+            return 0, skipped
+
+        embeddings = embed_batch([c for c, _ in new_chunks])
+
+        for (chunk_text, fp), embedding in zip(new_chunks, embeddings):
             self.insert(chunk_text, embedding, source=source, tags=tags, fingerprint=fp)
 
-        return len(chunks)
+        return len(new_chunks), skipped
 
     # ------------------------------------------------------------------
     # Lifecycle
