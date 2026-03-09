@@ -132,15 +132,16 @@ class TestMemoryStoreAdd:
 
     def test_add_returns_chunk_count(self, store):
         with patch("mem.embedder.embed_batch", side_effect=self._patch_embed):
-            count = store.add("Hello world. This is a short text.", source="test")
-        assert count >= 1
+            stored, skipped = store.add("Hello world. This is a short text.", source="test")
+        assert stored >= 1
+        assert skipped == 0
 
     def test_add_stores_chunks_in_db(self, store):
         article = " ".join(["word"] * 300)  # ~300 words → multiple chunks
         with patch("mem.embedder.embed_batch", side_effect=self._patch_embed):
-            n = store.add(article, source="article", tags=["test"])
-        assert store.count() == n
-        assert n > 1
+            stored, _ = store.add(article, source="article", tags=["test"])
+        assert store.count() == stored
+        assert stored > 1
 
     def test_add_sets_fingerprint(self, store):
         text = "A single sentence that fits in one chunk."
@@ -160,8 +161,9 @@ class TestMemoryStoreAdd:
 
     def test_add_empty_text_returns_zero(self, store):
         with patch("mem.embedder.embed_batch", side_effect=self._patch_embed):
-            n = store.add("")
-        assert n == 0
+            stored, skipped = store.add("")
+        assert stored == 0
+        assert skipped == 0
         assert store.count() == 0
 
     def test_add_1000_word_article_acceptance(self, store, tmp_path):
@@ -170,8 +172,8 @@ class TestMemoryStoreAdd:
         article = " ".join(words[:1000])
 
         with patch("mem.embedder.embed_batch", side_effect=self._patch_embed):
-            n = store.add(article, source="1000-word-article")
+            stored, _ = store.add(article, source="1000-word-article")
 
-        assert n > 0
-        assert store.count() == n
+        assert stored > 0
+        assert store.count() == stored
         assert "1000-word-article" in store.list_sources()
