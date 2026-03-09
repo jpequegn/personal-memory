@@ -1,0 +1,16 @@
+[
+  {"id": 1, "topic": "transformers", "query": "How does attention work in transformer models?"},
+  {"id": 2, "topic": "transformers", "query": "What is the difference between BERT and GPT attention?"},
+
+  {"id": 3, "topic": "vector_databases", "query": "How do vector databases index and search embeddings?"},
+  {"id": 4, "topic": "vector_databases", "query": "What is the difference between cosine similarity and L2 distance?"},
+
+  {"id": 5, "topic": "python_packaging", "query": "How do I manage Python dependencies and virtual environments?"},
+  {"id": 6, "topic": "python_packaging", "query": "What is pyproject.toml and how does it replace setup.py?"},
+
+  {"id": 7, "topic": "retrieval_augmented_generation", "query": "How does RAG reduce hallucinations in language models?"},
+  {"id": 8, "topic": "retrieval_augmented_generation", "query": "What chunking strategies work best for RAG pipelines?"},
+
+  {"id": 9,  "topic": "sqlite", "query": "What are SQLite's concurrency and transaction features?"},
+  {"id": 10, "topic": "sqlite", "query": "How can I extend SQLite with custom functions or search?"}
+]
