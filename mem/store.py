@@ -6,11 +6,12 @@ memories      – metadata table (text, source, tags, fingerprint, created_at)
 memory_vss    – vec0 virtual table for KNN embedding search
 """
 
+import hashlib
 import json
 import sqlite3
 import struct
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import sqlite_vec
@@ -165,6 +166,34 @@ class MemoryStore:
             "SELECT DISTINCT source FROM memories WHERE source IS NOT NULL ORDER BY source"
         ).fetchall()
         return [r[0] for r in rows]
+
+    def add(
+        self,
+        text: str,
+        *,
+        source: str | None = None,
+        tags: list[str] | None = None,
+        max_tokens: int = 256,
+        overlap: int = 32,
+    ) -> int:
+        """Chunk text, embed each chunk, and store everything.
+
+        Returns the number of chunks stored.
+        """
+        from mem.chunker import chunk
+        from mem.embedder import embed_batch
+
+        chunks = chunk(text, max_tokens=max_tokens, overlap=overlap)
+        if not chunks:
+            return 0
+
+        embeddings = embed_batch(chunks)
+
+        for chunk_text, embedding in zip(chunks, embeddings):
+            fp = hashlib.sha256(chunk_text.encode()).hexdigest()
+            self.insert(chunk_text, embedding, source=source, tags=tags, fingerprint=fp)
+
+        return len(chunks)
 
     # ------------------------------------------------------------------
     # Lifecycle
